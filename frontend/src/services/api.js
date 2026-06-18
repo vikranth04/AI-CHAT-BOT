@@ -1,7 +1,9 @@
 import axios from "axios";
 
 // Read API URL from Vite environment variables, fallback to local localhost port
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://vikky04-lingolift-ai.hf.space";
 
 /**
  * Sends a chat message to the LingoLift API backend.
