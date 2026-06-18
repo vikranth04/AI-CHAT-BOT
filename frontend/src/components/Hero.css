@@ -1,0 +1,154 @@
+.hero-section {
+  padding: 8rem 0 4rem;
+  width: 100%;
+  position: relative;
+  overflow: visible;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.hero-logo {
+  font-size: 4.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  background: linear-gradient(135deg, #0071E3 0%, #6366f1 50%, #d946ef 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-tagline {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  letter-spacing: -0.01em;
+  margin-bottom: 0.25rem;
+}
+
+.hero-description {
+  font-size: 1.15rem;
+  color: var(--text-body);
+  line-height: 1.6;
+  max-width: 580px;
+  margin-bottom: 1.5rem;
+}
+
+/* Glow CTA Button Container Wrapper */
+.hero-actions-container {
+  position: relative;
+  display: inline-block;
+  padding: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.cursor-glow-backdrop {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(0, 113, 227, 0.15) 0%, rgba(0, 113, 227, 0) 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.3s ease;
+}
+
+.hero-actions {
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  z-index: 1;
+}
+
+/* Rounded Pill Buttons matching Apple developer aesthetic */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 2rem;
+  border-radius: 9999px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  gap: 0.5rem;
+  transition: all var(--transition-normal);
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 113, 227, 0.25);
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+  box-shadow: 0 6px 20px rgba(0, 113, 227, 0.35);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-main);
+  border-color: var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: #ffffff;
+  border-color: var(--color-border-hover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.btn-icon {
+  transition: transform var(--transition-normal);
+}
+
+.btn:hover .btn-icon {
+  transform: translateX(3px);
+}
+
+@media (max-width: 991px) {
+  .hero-section {
+    padding: 5rem 0 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-logo {
+    font-size: 3.25rem;
+  }
+  
+  .hero-tagline {
+    font-size: 1.25rem;
+  }
+
+  .hero-actions-container {
+    border-radius: 24px;
+    width: 100%;
+    padding: 0.5rem;
+  }
+  
+  .hero-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+  }
+  
+  .btn {
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+  }
+}
