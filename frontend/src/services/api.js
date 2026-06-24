@@ -1,33 +1,85 @@
 import axios from "axios";
 
-// Read API URL from Vite environment variables, fallback to local localhost port
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://vikky04-lingolift-ai.hf.space";
+const API_URL = import.meta.env.VITE_API_URL;
+
+const api = axios.create({
+  baseURL: API_URL,
+});
+
+export default api;
 
 /**
  * Sends a chat message to the LingoLift API backend.
- * Handles timeouts and connection failures gracefully to prevent frontend crashes.
- * 
- * @param {string} message The user query input
- * @returns {Promise<{success: boolean, response?: string, feature?: string, error?: string}>}
  */
 export const sendMessage = async (message) => {
   try {
-    const response = await axios.get(`${API_URL}/chat`, {
-      params: {
-        message: message,
-      },
-      timeout: 10000, // 10 seconds timeout limit
+    const response = await api.post("/chat/", {
+      user_id: "test_user",
+      message: message,
     });
     return response.data;
   } catch (error) {
     console.error("LingoLift API network error:", error);
-    
-    // Return structured failure response so the caller is notified of the issue gracefully
     return {
       success: false,
-      error: error.response?.data?.detail || error.message || "Failed to reach the backend server.",
+      error: "Unable to connect to the LingoLift AI backend service.",
+    };
+  }
+};
+
+/**
+ * Fetches current user progress dashboard and memory profile statistics.
+ */
+export const fetchDashboardData = async () => {
+  try {
+    const response = await api.get("/dashboard-data", {
+      params: {
+        user_id: "test_user",
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("LingoLift API dashboard-data fetch error:", error);
+    return {
+      success: false,
+      error: "Unable to connect to the LingoLift AI backend service.",
+    };
+  }
+};
+
+/**
+ * Saves task completion states.
+ */
+export const updateCompletedTasks = async (completedTasks) => {
+  try {
+    const response = await api.post("/update-tasks", {
+      user_id: "test_user",
+      completed_tasks: completedTasks,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("LingoLift API update-tasks error:", error);
+    return {
+      success: false,
+      error: "Unable to connect to the LingoLift AI backend service.",
+    };
+  }
+};
+
+/**
+ * Advances the user to the next day.
+ */
+export const completeDay = async () => {
+  try {
+    const response = await api.post("/complete-day", {
+      user_id: "test_user",
+    });
+    return response.data;
+  } catch (error) {
+    console.error("LingoLift API complete-day error:", error);
+    return {
+      success: false,
+      error: "Unable to connect to the LingoLift AI backend service.",
     };
   }
 };

@@ -11,6 +11,7 @@ VALID_FEATURES = [
     "SYNONYMS",
     "ANTONYMS",
     "WORD_OF_DAY",
+    "LEARNING_PLAN",
     "OUT_OF_DOMAIN"
 ]
 
@@ -31,6 +32,7 @@ PRONUNCIATION
 SYNONYMS
 ANTONYMS
 WORD_OF_DAY
+LEARNING_PLAN
 OUT_OF_DOMAIN
 
 Classification Rules:
@@ -61,6 +63,9 @@ Opposite words.
 
 WORD_OF_DAY:
 Today's word, daily word, word of the day.
+
+LEARNING_PLAN:
+I want to improve English, roadmap, study plan, how to learn, study schedule.
 
 OUT_OF_DOMAIN:
 Anything unrelated to language learning.
@@ -125,6 +130,17 @@ def keyword_classifier(message: str) -> str:
         "difficult words",
         "new vocabulary",
         "improve vocabulary"
+    ]
+
+    learning_plan_keywords = [
+        "improve my english",
+        "improve english",
+        "learn english",
+        "english roadmap",
+        "learning plan",
+        "study plan",
+        "roadmap",
+        "30 day plan"
     ]
 
     grammar_keywords = [
@@ -223,6 +239,10 @@ def keyword_classifier(message: str) -> str:
     for keyword in word_day_keywords:
         if keyword in message:
             return "WORD_OF_DAY"
+
+    for keyword in learning_plan_keywords:
+        if keyword in message:
+            return "LEARNING_PLAN"
 
     return "OUT_OF_DOMAIN"
 

@@ -1,92 +1,111 @@
-# LingoLift - AI-Powered Language Learning Partner
+# LingoLift AI – Language Learning Agent
 
-LingoLift is a modern, responsive, and premium web application designed to act as an interactive English tutor. Users can improve grammar, translate between languages, practice English conversation, find synonyms & antonyms, learn advanced vocabulary, and get pronunciation assistance.
+LingoLift AI is an AI-powered Language Learning Agent designed to help users improve English in a structured and personalized way. Unlike traditional static chatbots, LingoLift functions as a true AI assistant by integrating state memory, automated planning roadmaps, tool-assisted execution, and dynamic progress trackers.
 
 ---
 
-## 🌟 Key Features
+## 🌟 Core Agent Capabilities
 
-1. **Vocabulary Learning**: Interactive vocabulary coaching with pronunciation, definitions, parts of speech, usage tips, and memory tricks.
-2. **Grammar Correction**: Detailed correction rules, explaining errors, and providing natural alternative sentence forms.
-3. **Translation Services**: Preserves original tone and context while translating, listing explanations and idioms.
-4. **Daily Communication Phrases**: Industry and context-specific communication cheat-sheets (workplace, travel, etc.).
-5. **Conversation Practice**: Simulates realistic topic-based chats, giving constructive feedback on user prompts.
-6. **Pronunciation Guidance**: syllable breakdown and phonetic reading support.
-7. **Synonyms & Antonyms**: Vocabulary expansions comparing differences in tone and contextual usages.
-8. **Word of the Day**: Prompts a fresh daily word challenge with memory tricks.
-9. **Out-of-Domain Guard**: Gracefully blocks unrelated requests (sports, programming, stock advice) and keeps the focus on language learning.
+### 1. Memory
+The agent maintains user profile details and state parameters across sessions:
+- **User Goal**: (Placements, IELTS, Communication, etc.)
+- **Learning Level**: (Beginner, Intermediate, Advanced)
+- **Weak Areas**: (Grammar, Pronunciation, Vocabulary, Conversation)
+- **Learning Progress**: Tracking current completed days.
+- **Current Day**: Marks the active day in the learning roadmap (e.g., Day 7 / 30).
+
+*Example State:*
+```yaml
+Goal: Placements
+Level: Beginner
+Weak Areas: [Grammar, Pronunciation]
+Current Progress: Day 7 / 30 (23.3%)
+```
+
+### 2. Planning
+The agent automatically plans and adjusts the curriculum:
+- **Roadmap Generation**: Creates a personalized 30-Day Learning Roadmap.
+- **Week-wise Strategy**: Focuses on specific skills per week.
+- **Day-wise Curriculum**: Defines daily objectives, study guidelines, specific tasks, assessments, and expected outcomes.
+
+*Example Plan:*
+- **Week 1**: Grammar Foundation
+  - **Day 1**: Sentence Structure SVO Basics
+  - **Day 2**: Simple Present Tense
+  - **Day 3**: Past Simple Tense
+
+### 3. Tool Usage
+The agent is backed by specialized external APIs and modules to resolve linguistic queries:
+- **Dictionary API**: Explains definitions, parts of speech, and usage tips.
+- **Translation API**: Translates English queries (e.g. to Telugu: శుభోదయం).
+- **Pronunciation Support**: Syllabification and sound helper tips.
+- **Vocabulary & Thesaurus**: Synonym and antonym search lookups.
+
+### 4. Progress Tracking
+The agent tracks metrics to measure course compliance:
+- **Completed Days Count** (e.g. 10 Days Completed)
+- **Learning Progress Percentage** (e.g. 35%)
+- **Vocabulary Words Learned** (e.g. 120 words)
+- **Grammar Exercises Solved** (e.g. 45 exercises)
+- **Learning Day Streak** (e.g. 6 Days)
+
+---
+
+## 🔄 AI Agent Workflow
+
+```mermaid
+graph TD
+    A[User Query] --> B[Intent Analysis]
+    B --> C[Memory Retrieval]
+    C --> D[Profile Analysis]
+    D --> E[Plan Generation / Calibration]
+    E --> F[Tool Execution Dictionary/Translation/etc.]
+    F --> G[Personalized Response Generation]
+    G --> H[Progress Update & Memory Storage]
+    H --> I[Updated Dashboard Render]
+```
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-* **Core**: React.js (Vite template)
-* **Styling**: Vanilla CSS (HIG Clean Apple Developer inspired style)
-* **Animations**: Framer Motion
-* **Icons**: Lucide React
-* **Networking**: Axios (configured with fallbacks and timeout safeguards)
+- **Framework**: React.js (Vite template)
+- **Styling**: Vanilla CSS (HIG Apple-inspired layout with responsive dashboard grid)
+- **Icons**: Lucide React
+- **Animations**: Framer Motion
 
 ### Backend
-* **Framework**: FastAPI (Python 3.10+)
-* **LLM Engine**: Groq API client (`llama-3.3-70b-versatile`)
-* **Environment**: python-dotenv for secrets handling
+- **Framework**: FastAPI (Python 3.10+)
+- **Runner**: Uvicorn ASGI server
+
+### AI Layer & Tools
+- **Orchestration**: LLM Prompt Engineering & Intent Classification
+- **Memory Management**: Local persistent JSON database tracking learner metrics
+- **External Tools**: Dictionary API and Translation API router interfaces
 
 ---
 
-## 📁 Folder Structure
+## 🤖 What Makes It an AI Agent?
 
-```
-AI-CHAT BOT/
-├── frontend/
-│   ├── src/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   │   ├── ChatDemo.jsx
-│   │   │   ├── ChatDemo.css
-│   │   │   ├── FeaturesGrid.jsx
-│   │   │   ├── FeaturesGrid.css
-│   │   │   ├── Footer.jsx
-│   │   │   ├── Footer.css
-│   │   │   ├── Hero.jsx
-│   │   │   ├── Hero.css
-│   │   │   └── ProjectDescription.jsx
-│   │   │   └── ProjectDescription.css
-│   │   ├── pages/
-│   │   │   ├── ChatPage.jsx
-│   │   │   └── ChatPage.css
-│   │   ├── services/
-│   │   │   └── api.js
-│   │   ├── styles/
-│   │   │   ├── App.css
-│   │   │   └── index.css
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   └── .env
-└── backend/
-    ├── app/
-    │   ├── config/
-    │   │   └── config.py
-    │   ├── models/
-    │   │   └── schemas.py
-    │   ├── prompts/
-    │   │   ├── master_prompt.py
-    │   │   └── ... (individual prompt files)
-    │   ├── services/
-    │   │   ├── chatbot.py
-    │   │   ├── classifier.py
-    │   │   └── llm_service.py
-    │   └── main.py
-    ├── main.py (bridge entrypoint wrapper)
-    └── .env
-```
+Unlike a traditional question-and-answer chatbot, LingoLift possesses capabilities that define an autonomous learning agent:
+
+| Capability Feature | Traditional Chatbot | LingoLift AI Agent |
+| :--- | :---: | :---: |
+| **Maintains User Memory** | ❌ No | ✅ Yes |
+| **Creates Personalized Learning Plans** | ❌ No | ✅ Yes |
+| **Tracks Long-Term Progress** | ❌ No | ✅ Yes |
+| **Executes External Tools** (APIs) | ❌ No | ✅ Yes |
+| **Generates Day-wise Curriculum Activities** | ❌ No | ✅ Yes |
+| **Adapts Recommendations Based on Profile** | ❌ No | ✅ Yes |
+
+This enables LingoLift to function as a personalized **AI Learning Partner** rather than a simple search interface.
 
 ---
 
-## 🚀 Installation & Local Setup
+## 🚀 Local Installation & Setup
 
 ### 1. Backend Setup
-
 1. Navigate to the backend directory:
    ```bash
    cd backend
@@ -96,8 +115,6 @@ AI-CHAT BOT/
    python -m venv venv
    # On Windows:
    .\venv\Scripts\activate
-   # On macOS/Linux:
-   source venv/bin/activate
    ```
 3. Install dependencies:
    ```bash
@@ -114,7 +131,6 @@ AI-CHAT BOT/
    *The backend will boot up at `http://127.0.0.1:8000`.*
 
 ### 2. Frontend Setup
-
 1. Navigate to the frontend directory:
    ```bash
    cd ../frontend
@@ -123,7 +139,7 @@ AI-CHAT BOT/
    ```bash
    npm install
    ```
-3. Create a `.env` file inside `frontend/` and configure the backend endpoint URL:
+3. Create a `.env` file inside `frontend/` and configure the backend URL:
    ```env
    VITE_API_URL=http://127.0.0.1:8000
    ```
@@ -132,23 +148,3 @@ AI-CHAT BOT/
    npm run dev
    ```
    *The frontend application will boot up at `http://localhost:5173`.*
-
----
-
-## 🛡️ Security & Performance Enhancements
-
-* **Exposed Secrets**: Avoided hardcoded values by moving all endpoint keys and Groq API tokens to `.env` files.
-* **API Timeout Protection**: Configured a `10000ms` call timeout inside [api.js](frontend/src/services/api.js) so that network requests do not hang indefinitely.
-* **Graceful Failure Fallbacks**: Implemented frontend try-catch blocks returning custom states so the React app remains online even if backend connections fail.
-* **Responsive Refinements**: Added root constraints `max-width: 100%` and `overflow-x: hidden` to avoid viewport layout horizontal shifting.
-
----
-
-## 🎓 Internship Compliance Checklist
-
-* **[x] Header with Chatbot Name**: Included clean `LingoLift` branding.
-* **[x] Project Description**: Detailed core mission text in a beautiful card component.
-* **[x] Working Chat Interface**: Real-time chat console styled with Apple HIG aesthetics.
-* **[x] Example Questions**: Clickable preset questions with ripple feedback animations.
-* **[x] Out-of-Domain Block**: LLM-level classifier routing off-topic prompts to a standardized help string.
-* **[x] Symmetric Responsiveness**: Responsive layout adapting to Mobile, Tablet, Laptop, and Wide Desktop devices.

@@ -49,6 +49,38 @@ export default function Hero({ onStartLearning, onExploreFeatures }) {
         >
           Learn vocabulary, improve grammar, translate text, and practice daily communication with an intelligent AI assistant.
         </motion.p>
+
+        <motion.div
+          className="hero-capabilities"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.6 }}
+        >
+          <div className="capability-item">
+            <span className="capability-check">✓</span>
+            <span>Personalized Learning Plans</span>
+          </div>
+          <div className="capability-item">
+            <span className="capability-check">✓</span>
+            <span>Vocabulary Assistance</span>
+          </div>
+          <div className="capability-item">
+            <span className="capability-check">✓</span>
+            <span>Translation Support</span>
+          </div>
+          <div className="capability-item">
+            <span className="capability-check">✓</span>
+            <span>Progress Tracking</span>
+          </div>
+          <div className="capability-item">
+            <span className="capability-check">✓</span>
+            <span>Pronunciation Guidance</span>
+          </div>
+          <div className="capability-item">
+            <span className="capability-check">✓</span>
+            <span>Memory-Based Learning</span>
+          </div>
+        </motion.div>
         
         <div 
           className="hero-actions-container"

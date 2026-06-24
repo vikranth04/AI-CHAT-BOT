@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { sendMessage } from "../services/api";
+import { useState, useRef, useEffect } from "react";
+import { sendMessage, fetchDashboardData } from "../services/api";
 import Hero from "../components/Hero";
 import ProjectDescription from "../components/ProjectDescription";
 import FeaturesGrid from "../components/FeaturesGrid";
@@ -11,9 +11,27 @@ export default function ChatPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [agentStatus, setAgentStatus] = useState("Idle");
+  const [statusMessage, setStatusMessage] = useState("Idle - Ready to assist");
 
   const chatSectionRef = useRef(null);
   const featuresSectionRef = useRef(null);
+
+  const loadDashboard = async () => {
+    try {
+      const res = await fetchDashboardData();
+      if (res && res.success) {
+        setDashboardData(res);
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
 
   const scrollToChat = () => {
     setTimeout(() => {
@@ -47,8 +65,46 @@ export default function ChatPage() {
     setLoading(true);
     scrollToChat();
 
+    // 1. Analyzing Intent
+    setAgentStatus("Analyzing Intent");
+    setStatusMessage("Classifying user request and identifying goals...");
+
+    const memoryTimeout = setTimeout(() => {
+      // 2. Retrieving Memory
+      setAgentStatus("Retrieving Memory");
+      setStatusMessage("Fetching learner profile and past performance...");
+    }, 600);
+
+    const planTimeout = setTimeout(() => {
+      // 3. Generating Plan
+      setAgentStatus("Generating Plan");
+      setStatusMessage("Constructing reasoning path for optimal response...");
+    }, 1200);
+
+    const toolsTimeout = setTimeout(() => {
+      // 4. Executing Tools
+      setAgentStatus("Executing Tools");
+      setStatusMessage("Running internal linguistic engines and cross-referencing...");
+    }, 1800);
+
+    const responseTimeout = setTimeout(() => {
+      // 5. Generating Response
+      setAgentStatus("Generating Response");
+      setStatusMessage("Finalizing personalized AI response...");
+    }, 2400);
+
     try {
       const data = await sendMessage(trimmed);
+
+      clearTimeout(memoryTimeout);
+      clearTimeout(planTimeout);
+      clearTimeout(toolsTimeout);
+      clearTimeout(responseTimeout);
+
+      // 6. Completed
+      setAgentStatus("Completed");
+      setStatusMessage("Response generation successful!");
+
       const responseTimestamp = new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -59,11 +115,23 @@ export default function ChatPage() {
         {
           role: "assistant",
           text: data.success ? data.response : (data.error || "An error occurred on the server."),
-          feature: data.success ? data.feature : null,
+          intent: data.success ? data.intent : null,
           time: responseTimestamp,
         },
       ]);
+
+      // Reload dashboard memory/progress values - SYNC AFTER CHAT
+      await loadDashboard();
+
     } catch (error) {
+      clearTimeout(memoryTimeout);
+      clearTimeout(planTimeout);
+      clearTimeout(toolsTimeout);
+      clearTimeout(responseTimeout);
+
+      setAgentStatus("Idle");
+      setStatusMessage("Unable to connect to the LingoLift AI backend service.");
+
       const responseTimestamp = new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -73,14 +141,20 @@ export default function ChatPage() {
         ...prev,
         {
           role: "assistant",
-          text: "Failed to connect to the language server. Please ensure the backend is running at http://127.0.0.1:8000.",
-          feature: null,
+          text: "Unable to connect to the LingoLift AI backend service. Please check your internet connection.",
+          intent: null,
           time: responseTimestamp,
         },
       ]);
     }
 
     setLoading(false);
+
+    // Revert status to Idle after 2.5 seconds
+    setTimeout(() => {
+      setAgentStatus("Idle");
+      setStatusMessage("Idle - Ready to assist");
+    }, 2500);
   };
 
   const handleFeatureClick = (prompt) => {
@@ -108,20 +182,24 @@ export default function ChatPage() {
           sectionRef={featuresSectionRef}
           onFeatureClick={handleFeatureClick}
         />
-
-        {/* Section 4 & 5: Example Questions & Chat Interface */}
-        <ChatDemo
-          sectionRef={chatSectionRef}
-          messages={messages}
-          inputMessage={message}
-          setInputMessage={setMessage}
-          onSendMessage={() => handleSend()}
-          onPromptClick={handlePromptClick}
-          isLoading={loading}
-        />
       </div>
 
-      {/* Section 8: Footer */}
+      {/* Section 4 & 5: Example Questions & Chat Interface */}
+      {/* Moved out of content-wrapper to allow full-width background */}
+      <ChatDemo
+        sectionRef={chatSectionRef}
+        messages={messages}
+        inputMessage={message}
+        setInputMessage={setMessage}
+        onSendMessage={() => handleSend()}
+        onPromptClick={handlePromptClick}
+        isLoading={loading}
+        dashboardData={dashboardData}
+        agentStatus={agentStatus}
+        statusMessage={statusMessage}
+        onRefreshDashboard={loadDashboard}
+      />
+
       <Footer />
     </div>
   );

@@ -17,8 +17,8 @@ export default function Footer() {
           <p>AI-Powered Language Learning Partner</p>
         </div>
         <div className="footer-details">
-          <p>Built by Vikranth Butti</p>
-          <p>Built for GENAI Internship 2026</p>
+          <p>Vikranth Butti</p>
+          <p>Built for GENAI Internship - Milestone 2</p>
           <span className="footer-copyright">
             &copy; 2026 LingoLift. All Rights Reserved.
           </span>

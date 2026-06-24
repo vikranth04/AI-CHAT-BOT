@@ -12,67 +12,29 @@ import {
   ArrowRight,
   Compass,
   MessageCircle,
-  AlertCircle,
   Lightbulb,
   Sparkles,
-  Info,
-  CheckCircle2,
 } from "lucide-react";
+import { updateCompletedTasks, completeDay } from "../services/api";
+import LearnerProfile from "./dashboard/LearnerProfile";
+import LearningAnalytics from "./dashboard/LearningAnalytics";
+import AgentStatus from "./dashboard/AgentStatus";
+import Roadmap from "./dashboard/Roadmap";
+import TodayPlan from "./dashboard/TodayPlan";
+import ToolIntegration from "./dashboard/ToolIntegration";
+import AgentReasoning from "./dashboard/AgentReasoning";
+import AgentActivityFeed from "./dashboard/AgentActivityFeed";
+import JourneyTimeline from "./dashboard/JourneyTimeline";
+import "../styles/dashboard.css";
 import "./ChatDemo.css";
 
 const EXAMPLE_QUESTIONS = [
-  { text: "Translate hello to Telugu", icon: Languages },
-  { text: "Correct: I am go to college everyday", icon: SpellCheck },
-  { text: "Teach me 5 advanced English words", icon: BookOpen },
-  { text: "Give me today's word", icon: Calendar },
-  { text: "How to pronounce Environment", icon: Volume2 },
-  { text: "Give synonyms of Happy", icon: Shuffle },
+  { text: "I want to improve English", icon: Sparkles },
+  { text: "Create a 30-Day Placement English Plan", icon: Calendar },
+  { text: "What should I study today?", icon: Compass },
+  { text: "Translate \"How are you?\" to Telugu", icon: Languages },
+  { text: "Meaning of perseverance", icon: BookOpen },
 ];
-
-// Interactive Prompt Chip Component with ripple effect
-const RippleChip = ({ text, icon: Icon, onClick, isLoading }) => {
-  const [ripples, setRipples] = useState([]);
-
-  const handleClick = (e) => {
-    if (isLoading) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const newRipple = { x, y, id: Date.now() };
-    setRipples((prev) => [...prev, newRipple]);
-    
-    // Clear ripple after animation duration
-    setTimeout(() => {
-      setRipples((prev) => prev.filter((r) => r.id !== newRipple.id));
-    }, 600);
-
-    onClick(text);
-  };
-
-  return (
-    <motion.button
-      className="question-chip"
-      onClick={handleClick}
-      disabled={isLoading}
-      whileHover={{ y: -3, scale: 1.02 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 400, damping: 15 }}
-    >
-      <div className="chip-content">
-        <Icon size={14} className="chip-icon" />
-        <span>{text}</span>
-      </div>
-      <ArrowRight size={12} className="chip-arrow" />
-      {ripples.map((ripple) => (
-        <span
-          key={ripple.id}
-          className="ripple-effect"
-          style={{ left: ripple.x, top: ripple.y }}
-        />
-      ))}
-    </motion.button>
-  );
-};
 
 export default function ChatDemo({
   messages,
@@ -82,8 +44,17 @@ export default function ChatDemo({
   onPromptClick,
   isLoading,
   sectionRef,
+  dashboardData,
+  agentStatus,
+  statusMessage,
+  onRefreshDashboard
 }) {
   const chatBottomRef = useRef(null);
+  const [updatingTask, setUpdatingTask] = useState(false);
+  const [advancingDay, setAdvancingDay] = useState(false);
+
+  // Extract last intent from messages
+  const lastIntent = messages.filter(m => m.role === 'assistant' && m.intent).pop()?.intent;
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -98,7 +69,43 @@ export default function ChatDemo({
     }
   };
 
-  // Structured response parser that splits LLM response by standard headers
+  const handleToggleTask = async (idx) => {
+    if (updatingTask || !dashboardData?.today_plan?.tasks) return;
+    
+    const tasks = dashboardData.today_plan.tasks;
+    const updated = tasks.map((t, i) => i === idx ? { ...t, completed: !t.completed } : t);
+    
+    try {
+      setUpdatingTask(true);
+      const completedNames = updated.filter(t => t.completed).map(t => t.name);
+      await updateCompletedTasks(completedNames);
+      if (onRefreshDashboard) {
+        await onRefreshDashboard();
+      }
+    } catch (err) {
+      console.error("Failed to update tasks:", err);
+    } finally {
+      setUpdatingTask(false);
+    }
+  };
+
+  const handleCompleteDay = async () => {
+    if (advancingDay) return;
+    try {
+      setAdvancingDay(true);
+      const res = await completeDay();
+      if (res && res.success) {
+        if (onRefreshDashboard) {
+          await onRefreshDashboard();
+        }
+      }
+    } catch (err) {
+      console.error("Failed to advance day:", err);
+    } finally {
+      setAdvancingDay(false);
+    }
+  };
+
   const parseStructuredResponse = (text, headers) => {
     const sections = {};
     let currentHeader = null;
@@ -108,11 +115,10 @@ export default function ChatDemo({
       const cleanLine = line.trim();
       if (cleanLine === "") continue;
 
-      // Normalize line to check against header keys
       const normalizedLine = cleanLine
-        .replace(/^\*+\s*/, "") // Remove starting asterisks
-        .replace(/\*+$/, "")    // Remove trailing asterisks
-        .replace(/:+$/, "")     // Remove colon at the end
+        .replace(/^\*+\s*/, "")
+        .replace(/\*+$/, "")
+        .replace(/:+$/, "")
         .trim()
         .toLowerCase();
 
@@ -137,7 +143,6 @@ export default function ChatDemo({
       }
     }
 
-    // Join arrays back to strings
     for (let key in sections) {
       sections[key] = sections[key].join("\n").trim();
     }
@@ -154,571 +159,208 @@ export default function ChatDemo({
       const isNumber = /^\d+\.\s/.test(line);
 
       let cleanLine = line;
-      if (isBullet) {
-        cleanLine = line.substring(2);
-      } else if (isNumber) {
-        cleanLine = line.replace(/^\d+\.\s/, "");
-      }
+      if (isBullet) cleanLine = line.substring(2);
+      else if (isNumber) cleanLine = line.replace(/^\d+\.\s/, "");
 
       const parts = cleanLine.split(/\*\*(.*?)\*\*/g);
       const elements = parts.map((part, i) => {
-        if (i % 2 === 1) {
-          return (
-            <strong key={i} style={{ color: "#0071E3", fontWeight: "600" }}>
-              {part}
-            </strong>
-          );
-        }
+        if (i % 2 === 1) return <strong key={i} style={{ color: "var(--accent-blue)", fontWeight: "600" }}>{part}</strong>;
         return part;
       });
 
-      if (isBullet) {
-        return (
-          <li key={index} className="bot-bullet">
-            {elements}
-          </li>
-        );
-      }
-      if (isNumber) {
-        return (
-          <li key={index} className="bot-number">
-            {elements}
-          </li>
-        );
-      }
-
-      if (line.trim() === "") {
-        return <div key={index} className="bot-gap" />;
-      }
-
+      if (isBullet) return <li key={index} className="bot-bullet">{elements}</li>;
+      if (isNumber) return <li key={index} className="bot-number">{elements}</li>;
+      if (line.trim() === "") return <div key={index} className="bot-gap" />;
       return <p key={index} className="bot-para">{elements}</p>;
     });
   };
 
-  // Maps features to their corresponding icons
   const getFeatureIcon = (feature) => {
     switch (feature) {
-      case "GRAMMAR":
-        return SpellCheck;
-      case "TRANSLATION":
-        return Languages;
-      case "VOCABULARY":
-        return BookOpen;
-      case "PRONUNCIATION":
-        return Volume2;
+      case "GRAMMAR": return SpellCheck;
+      case "TRANSLATION": return Languages;
+      case "VOCABULARY": return BookOpen;
+      case "PRONUNCIATION": return Volume2;
       case "SYNONYMS":
-      case "ANTONYMS":
-        return Shuffle;
-      case "WORD_OF_DAY":
-        return Calendar;
-      case "DAILY_PHRASES":
-        return Compass;
-      case "CONVERSATION":
-        return MessageCircle;
-      default:
-        return Sparkles;
+      case "ANTONYMS": return Shuffle;
+      case "WORD_OF_DAY": return Calendar;
+      case "DAILY_PHRASES": return Compass;
+      case "CONVERSATION": return MessageCircle;
+      default: return Sparkles;
     }
   };
 
-  // Maps features to their neat readable titles
   const getFeatureTitle = (feature) => {
     switch (feature) {
-      case "GRAMMAR":
-        return "Grammar Advisor";
-      case "TRANSLATION":
-        return "Translation Hub";
-      case "VOCABULARY":
-        return "Vocabulary Insights";
-      case "PRONUNCIATION":
-        return "Pronunciation Guide";
-      case "SYNONYMS":
-        return "Synonym Finder";
-      case "ANTONYMS":
-        return "Antonym Companion";
-      case "WORD_OF_DAY":
-        return "Word of the Day";
-      case "DAILY_PHRASES":
-        return "Daily Phrase List";
-      case "CONVERSATION":
-        return "Conversation Coach";
-      default:
-        return "LingoLift Assistant";
+      case "GRAMMAR": return "Grammar Advisor";
+      case "TRANSLATION": return "Translation Hub";
+      case "VOCABULARY": return "Vocabulary Insights";
+      case "PRONUNCIATION": return "Pronunciation Guide";
+      case "SYNONYMS": return "Synonym Finder";
+      case "ANTONYMS": return "Antonym Companion";
+      case "WORD_OF_DAY": return "Word of the Day";
+      case "DAILY_PHRASES": return "Daily Phrase List";
+      case "CONVERSATION": return "Conversation Coach";
+      default: return "LingoLift Assistant";
     }
   };
 
-  // Generic Response Card Renderer that satisfies the "Do not show plain text blocks" requirement
   const renderResponseCard = (feature, text) => {
     if (!text) return null;
-
     const FeatureIcon = getFeatureIcon(feature);
     const title = getFeatureTitle(feature);
-
-    // List of all possible headers to parse across all prompts
-    const allHeaders = [
-      "Word of the Day", "Word", "Pronunciation", "Part of Speech", "Meaning",
-      "Synonyms", "Antonyms", "Example Sentence 1", "Example Sentence 2",
-      "Example Sentence", "Example (Original Word)", "Example (Antonym)",
-      "Usage Example", "Example", "Usage Tip", "Memory Trick",
-      "Original", "Corrected", "Explanation", "Grammar Rule", "Natural Version", "Grammar Tip",
-      "Source Text", "Translation", "Brief Explanation", "Linguistic Notes",
-      "Syllable Breakdown", "Sound Tips", "Speaking Tip", "Phrase", "Natural Speaking Version",
-      "Situation", "Your Response", "Correction", "Follow-up Question", "Vocabulary Tip", "Usage Differences"
-    ];
-
+    const allHeaders = ["Word", "Pronunciation", "Meaning", "Usage Tip", "Memory Trick", "Original", "Corrected", "Explanation", "Translation"];
     const parsed = parseStructuredResponse(text, allHeaders);
-    const hasKeys = Object.keys(parsed).length > 0;
-
-    // Render plain text inside card if no structured keys were found
-    if (!hasKeys) {
-      return (
-        <div className="response-card standard-card">
-          <div className="card-header">
-            <FeatureIcon size={16} className="card-icon" />
-            <span>{title}</span>
-          </div>
-          <div className="card-body">
-            <div className="formatted-bot-text">
-              {renderBotText(text)}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Assemble components for the unified premium response card
-    const headerTitle = parsed.Word || parsed.Phrase || parsed.Situation || parsed["Word of the Day"] || title;
+    const headerTitle = parsed.Word || parsed.Phrase || title;
     
-    // Core details group
-    const renderCardContent = () => {
-      return (
-        <div className="card-content-wrapper">
-          {/* Main Meaning / Translation / Corrected values */}
-          {parsed.Original && (
-            <div className="card-row error-row">
-              <span className="row-title">Original</span>
-              <p className="row-text">{parsed.Original.replace(/^["']|["']$/g, "")}</p>
-            </div>
-          )}
-
-          {parsed["Source Text"] && (
-            <div className="card-row standard-row">
-              <span className="row-title">Source Text</span>
-              <p className="row-text">{parsed["Source Text"]}</p>
-            </div>
-          )}
-
-          {parsed.Corrected && (
-            <div className="card-row success-row">
-              <span className="row-title">Corrected</span>
-              <p className="row-text">{parsed.Corrected.replace(/^["']|["']$/g, "")}</p>
-            </div>
-          )}
-
-          {parsed.Translation && (
-            <div className="card-row success-row">
-              <span className="row-title">Translation</span>
-              <p className="row-text">{parsed.Translation}</p>
-            </div>
-          )}
-
-          {parsed.Pronunciation && (
-            <div className="card-row info-row pronunciation-row">
-              <span className="row-title">Pronunciation</span>
-              <p className="row-text italic-guide">{parsed.Pronunciation}</p>
-            </div>
-          )}
-
-          {parsed["Part of Speech"] && (
-            <div className="card-row info-row">
-              <span className="row-title">Part of Speech</span>
-              <span className="badge-pill">{parsed["Part of Speech"]}</span>
-            </div>
-          )}
-
-          {parsed["Syllable Breakdown"] && (
-            <div className="card-row info-row">
-              <span className="row-title">Syllables</span>
-              <p className="row-text font-inter">{parsed["Syllable Breakdown"]}</p>
-            </div>
-          )}
-
-          {parsed.Meaning && (
-            <div className="card-row primary-meaning-row">
-              <span className="row-title">Meaning</span>
-              <p className="row-text">{parsed.Meaning}</p>
-            </div>
-          )}
-
-          {parsed["Your Response"] && (
-            <div className="card-row chat-response-row">
-              <span className="row-title">Coach Response</span>
-              <p className="row-text">{parsed["Your Response"]}</p>
-            </div>
-          )}
-
-          {parsed.Correction && parsed.Correction !== "No correction needed." && (
-            <div className="card-row success-row">
-              <span className="row-title">Grammar Correction</span>
-              <p className="row-text">{parsed.Correction}</p>
-            </div>
-          )}
-
-          {parsed.Explanation && (
-            <div className="card-row info-row">
-              <span className="row-title">Explanation</span>
-              <div className="row-html">{renderBotText(parsed.Explanation)}</div>
-            </div>
-          )}
-
-          {parsed["Grammar Rule"] && (
-            <div className="card-row info-row">
-              <span className="row-title">Grammar Rule</span>
-              <p className="row-text">{parsed["Grammar Rule"]}</p>
-            </div>
-          )}
-
-          {parsed["Natural Version"] && (
-            <div className="card-row info-row">
-              <span className="row-title">Natural Alternative</span>
-              <p className="row-text italic-guide">"{parsed["Natural Version"]}"</p>
-            </div>
-          )}
-
-          {parsed["Natural Speaking Version"] && (
-            <div className="card-row info-row">
-              <span className="row-title">Natural Speech</span>
-              <p className="row-text italic-guide">"{parsed["Natural Speaking Version"]}"</p>
-            </div>
-          )}
-
-          {parsed.Synonyms && (
-            <div className="card-row synonyms-row">
-              <span className="row-title">Synonyms</span>
-              <div className="synonyms-list">
-                {parsed.Synonyms.split("\n").map((s, idx) => (
-                  <span key={idx} className="synonym-tag">{s.replace(/^[•\-\*\s]+/, "")}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {parsed.Antonyms && (
-            <div className="card-row antonyms-row">
-              <span className="row-title">Antonyms</span>
-              <div className="antonyms-list">
-                {parsed.Antonyms.split("\n").map((a, idx) => (
-                  <span key={idx} className="antonym-tag">{a.replace(/^[•\-\*\s]+/, "")}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {parsed["Usage Differences"] && (
-            <div className="card-row info-row">
-              <span className="row-title">Usage Details</span>
-              <div className="row-html">{renderBotText(parsed["Usage Differences"])}</div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    // Example Block Group
-    const hasExample = parsed["Example Sentence 1"] || parsed["Example Sentence 2"] || parsed["Example Sentence"] || parsed["Example (Original Word)"] || parsed["Example (Antonym)"] || parsed["Usage Example"] || parsed.Example;
-    const renderCardExamples = () => {
-      if (!hasExample) return null;
-      return (
-        <div className="card-examples-area">
-          <h5 className="examples-header-label">Examples</h5>
-          <div className="examples-list">
-            {parsed["Example (Original Word)"] && (
-              <div className="example-item">
-                <span className="example-item-badge">Original</span>
-                <p>"{parsed["Example (Original Word)"]}"</p>
-              </div>
-            )}
-            {parsed["Example (Antonym)"] && (
-              <div className="example-item">
-                <span className="example-item-badge secondary">Antonym</span>
-                <p>"{parsed["Example (Antonym)"]}"</p>
-              </div>
-            )}
-            {parsed["Example Sentence 1"] && (
-              <div className="example-item">
-                <p>1. "{parsed["Example Sentence 1"]}"</p>
-              </div>
-            )}
-            {parsed["Example Sentence 2"] && (
-              <div className="example-item">
-                <p>2. "{parsed["Example Sentence 2"]}"</p>
-              </div>
-            )}
-            {parsed["Example Sentence"] && (
-              <div className="example-item">
-                <p>"{parsed["Example Sentence"]}"</p>
-              </div>
-            )}
-            {parsed["Usage Example"] && (
-              <div className="example-item">
-                <p>"{parsed["Usage Example"]}"</p>
-              </div>
-            )}
-            {parsed.Example && !parsed["Example Sentence 1"] && (
-              <div className="example-item">
-                <p>"{parsed.Example}"</p>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    };
-
-    // Tips Block Group
-    const hasTips = parsed["Usage Tip"] || parsed["Memory Trick"] || parsed["Grammar Tip"] || parsed["Vocabulary Tip"] || parsed["Speaking Tip"] || parsed["Sound Tips"] || parsed["Brief Explanation"] || parsed["Linguistic Notes"] || parsed["Follow-up Question"];
-    const renderCardTips = () => {
-      if (!hasTips) return null;
-      return (
-        <div className="card-tips-area">
-          {parsed["Usage Tip"] && (
-            <div className="tip-box">
-              <Lightbulb size={15} className="tip-icon-bulb" />
-              <div>
-                <strong>Usage Tip:</strong> {parsed["Usage Tip"]}
-              </div>
-            </div>
-          )}
-          {parsed["Memory Trick"] && (
-            <div className="tip-box memory-box">
-              <Sparkles size={15} className="tip-icon-sparkle" />
-              <div>
-                <strong>Memory Trick:</strong> {parsed["Memory Trick"]}
-              </div>
-            </div>
-          )}
-          {parsed["Grammar Tip"] && (
-            <div className="tip-box">
-              <CheckCircle2 size={15} className="tip-icon-check" />
-              <div>
-                <strong>Grammar Tip:</strong> {parsed["Grammar Tip"]}
-              </div>
-            </div>
-          )}
-          {parsed["Vocabulary Tip"] && (
-            <div className="tip-box">
-              <Lightbulb size={15} className="tip-icon-bulb" />
-              <div>
-                <strong>Vocabulary Tip:</strong> {parsed["Vocabulary Tip"]}
-              </div>
-            </div>
-          )}
-          {parsed["Speaking Tip"] && (
-            <div className="tip-box">
-              <Volume2 size={15} className="tip-icon-volume" />
-              <div>
-                <strong>Speaking Tip:</strong> {parsed["Speaking Tip"]}
-              </div>
-            </div>
-          )}
-          {parsed["Sound Tips"] && (
-            <div className="tip-box">
-              <Info size={15} className="tip-icon-info" />
-              <div>
-                <strong>Pronunciation Tip:</strong> {parsed["Sound Tips"]}
-              </div>
-            </div>
-          )}
-          {parsed["Brief Explanation"] && (
-            <div className="tip-box">
-              <Info size={15} className="tip-icon-info" />
-              <div>
-                <strong>Explanation:</strong> {parsed["Brief Explanation"]}
-              </div>
-            </div>
-          )}
-          {parsed["Linguistic Notes"] && (
-            <div className="tip-box">
-              <Info size={15} className="tip-icon-info" />
-              <div>
-                <strong>Linguistic Note:</strong> {parsed["Linguistic Notes"]}
-              </div>
-            </div>
-          )}
-          {parsed["Follow-up Question"] && (
-            <div className="tip-box follow-up-box">
-              <MessageCircle size={15} className="tip-icon-message" />
-              <div>
-                <strong>Coach's Question:</strong> <span className="follow-up-question-text">{parsed["Follow-up Question"]}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
     return (
-      <div className="response-card premium-response-card">
-        {/* Title Section */}
-        <div className="card-header">
-          <FeatureIcon size={16} className="card-icon" />
-          <span className="card-title-text">{headerTitle}</span>
+      <div className="response-card premium-response-card" style={{ background: '#ffffff', border: '1px solid #d2d2d7', borderRadius: '12px', padding: '1rem', color: '#1d1d1f' }}>
+        <div className="card-header" style={{ borderBottom: '1px solid #f5f5f7', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}>
+          <FeatureIcon size={16} style={{ color: '#0071e3' }} />
+          <span style={{ fontWeight: 600, marginLeft: '0.5rem' }}>{headerTitle}</span>
         </div>
-        
-        <div className="card-body">
-          {/* Content Area */}
-          {renderCardContent()}
-          
-          {/* Example Area */}
-          {renderCardExamples()}
-          
-          {/* Tips Area */}
-          {renderCardTips()}
+        <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-content-wrapper">
+            {parsed.Original && (
+              <div className="card-row error-row" style={{ background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: '8px', padding: '0.5rem', marginBottom: '0.5rem' }}>
+                <span className="row-title" style={{ fontSize: '0.7rem', color: '#cf1322' }}>Original</span>
+                <p className="row-text" style={{ margin: 0 }}>{parsed.Original.replace(/^["']|["']$/g, "")}</p>
+              </div>
+            )}
+            {parsed.Corrected && (
+              <div className="card-row success-row" style={{ background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '8px', padding: '0.5rem', marginBottom: '0.5rem' }}>
+                <span className="row-title" style={{ fontSize: '0.7rem', color: '#389e0d' }}>Corrected</span>
+                <p className="row-text" style={{ margin: 0 }}>{parsed.Corrected.replace(/^["']|["']$/g, "")}</p>
+              </div>
+            )}
+            {parsed.Translation && (
+              <div className="card-row success-row" style={{ background: '#f0f5ff', border: '1px solid #adc6ff', borderRadius: '8px', padding: '0.5rem', marginBottom: '0.5rem' }}>
+                <span className="row-title" style={{ fontSize: '0.7rem', color: '#1d39c4' }}>Translation</span>
+                <p className="row-text" style={{ margin: 0 }}>{parsed.Translation}</p>
+              </div>
+            )}
+            {parsed.Meaning && (
+              <div className="card-row primary-meaning-row" style={{ marginBottom: '0.5rem' }}>
+                <span className="row-title" style={{ fontSize: '0.7rem', color: '#86868b' }}>Meaning</span>
+                <p className="row-text" style={{ margin: 0, fontWeight: 500 }}>{parsed.Meaning}</p>
+              </div>
+            )}
+            {parsed.Explanation && <div className="info-row" style={{ fontSize: '0.9rem' }}>{renderBotText(parsed.Explanation)}</div>}
+          </div>
+          {!Object.keys(parsed).length && <div className="formatted-bot-text">{renderBotText(text)}</div>}
+
+          {(parsed["Usage Tip"] || parsed["Memory Trick"]) && (
+            <div className="card-tips-area" style={{ marginTop: '0.75rem', borderTop: '1px solid #f5f5f7', paddingTop: '0.75rem' }}>
+              {parsed["Usage Tip"] && (
+                <div className="tip-box" style={{ background: '#e6f7ff', border: '1px solid #91d5ff', borderRadius: '8px', padding: '0.5rem' }}>
+                  <Lightbulb size={15} style={{ color: '#1890ff' }} />
+                  <div style={{ fontSize: '0.85rem' }}><strong>Usage Tip:</strong> {parsed["Usage Tip"]}</div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
-  const getCleanBadgeLabel = (feature) => {
-    if (!feature) return "";
-    const cleaned = feature.replace("_", " ").toUpperCase();
-    if (cleaned === "SYNONYMS" || cleaned === "ANTONYMS") {
-      return "SYNONYMS & ANTONYMS";
-    }
-    return cleaned;
-  };
+  const getCleanBadgeLabel = (feature) => feature?.replace("_", " ").toUpperCase() || "";
+  const hasProfile = dashboardData?.has_profile === true;
 
   return (
-    <section className="chat-section" ref={sectionRef}>
-      <div className="chat-section-header">
-        <h2>AI Chat Sandbox</h2>
-        <p>Type queries or click an example question to start learning immediately.</p>
-      </div>
+    <section className="chat-section" ref={sectionRef} style={{ background: '#f5f5f7', width: '100%', padding: '4rem 0' }}>
+      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '0 2rem', display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'start' }}>
 
-      <div className="chat-workspace">
-        {/* Example Questions Section */}
-        <div className="example-questions-panel">
-          <h3>Example Questions</h3>
-          <p>Click any prompt below to trigger the AI chatbot.</p>
-          <div className="questions-grid">
-            {EXAMPLE_QUESTIONS.map((question, idx) => (
-              <RippleChip
-                key={idx}
-                text={question.text}
-                icon={question.icon}
-                onClick={onPromptClick}
-                isLoading={isLoading}
-              />
-            ))}
+        {/* CHAT PANEL */}
+        <div className="chat-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', position: 'sticky', top: '2rem' }}>
+          <div className="agent-status-bar" style={{ background: '#ffffff', borderColor: '#d2d2d7', color: '#1d1d1f', borderRadius: '16px', padding: '1rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div className="status-indicator">
+              <span className="status-dot-pulse" style={{ backgroundColor: agentStatus === 'Planning' ? '#ff9500' : agentStatus === 'Executing' ? '#0071e3' : '#34c759' }} />
+              <span style={{ fontWeight: 600 }}>{agentStatus}</span>
+            </div>
+            <span style={{ fontSize: '0.85rem', color: '#86868b' }}>{statusMessage}</span>
+          </div>
+
+          <div className="example-queries-box" style={{ background: '#ffffff', borderColor: '#d2d2d7', borderRadius: '16px', padding: '1.25rem' }}>
+            <div className="queries-chips-grid">
+              {EXAMPLE_QUESTIONS.map((q, i) => (
+                <button key={i} className="query-chip-btn" onClick={() => onPromptClick(q.text)} style={{ background: '#f5f5f7', borderColor: '#d2d2d7', color: '#1d1d1f', borderRadius: '20px', padding: '0.6rem 1rem' }}>
+                  <q.icon size={13} style={{ color: '#0071e3' }} />
+                  <span style={{ fontWeight: 500 }}>{q.text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="chat-console-dashboard" style={{ background: '#ffffff', borderColor: '#d2d2d7', height: '650px', borderRadius: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="chat-messages-container" style={{ background: '#ffffff', flex: 1, overflowY: 'auto' }}>
+              {messages.length === 0 ? (
+                <div className="chat-empty-state">
+                  <div className="empty-icon-circle" style={{ background: 'rgba(0, 113, 227, 0.08)' }}><MessageSquare size={32} color="#0071e3" /></div>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '1.5rem' }}>LingoLift AI Agent</h3>
+                  <p style={{ color: '#86868b', maxWidth: '300px', margin: '0.5rem auto' }}>
+                    {hasProfile ? `Ready to continue your ${dashboardData.learner_profile.goal} roadmap?` : 'Your personalized AI language partner is ready to start.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="messages-flow" style={{ padding: '1rem' }}>
+                  {messages.map((msg, i) => (
+                    <motion.div key={i} className={`message-row ${msg.role === 'user' ? 'user-row' : 'bot-row'}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                      <div className="bubble-wrapper">
+                        {msg.role === 'assistant' && msg.intent && (
+                          <div className="feature-badge" style={{ background: '#0071e3', borderRadius: '12px', padding: '2px 8px', fontSize: '0.65rem' }}>
+                            <span>{getCleanBadgeLabel(msg.intent)}</span>
+                          </div>
+                        )}
+                        <div className={`bubble ${msg.role === 'user' ? 'user-bubble' : 'bot-bubble'}`} style={msg.role === 'user' ? { background: '#0071e3', color: '#fff' } : { background: '#f5f5f7', color: '#1d1d1f', border: '1px solid #d2d2d7' }}>
+                          {msg.role === 'user' ? <p style={{ margin: 0, padding: '0.75rem 1rem' }}>{msg.text}</p> : renderResponseCard(msg.intent, msg.text)}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+              <div ref={chatBottomRef} />
+            </div>
+            <div className="chat-input-area" style={{ background: '#ffffff', borderTop: '1px solid #d2d2d7', padding: '1.25rem' }}>
+              <div className="input-pill" style={{ background: '#f5f5f7', borderColor: '#d2d2d7', borderRadius: '24px', padding: '0.4rem 0.6rem 0.4rem 1.25rem' }}>
+                <input type="text" placeholder="Ask anything..." value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyDown={handleKeyDown} style={{ color: '#1d1d1f', fontSize: '1rem' }} />
+                <button className="send-button" onClick={() => onSendMessage()} style={{ background: '#0071e3', borderRadius: '50%', width: '36px', height: '36px' }}><ArrowUp size={18} /></button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Chat Console Section */}
-        <div className="chat-console">
-          <div className="chat-console-header">
-            <div className="console-title-info">
-              <span className="console-status-dot"></span>
-              <h4>LingoLift Chatbot</h4>
+        {/* DASHBOARD PANEL */}
+        <div className="dashboard-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* Thinking & Memory Context */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <AgentReasoning dashboardData={dashboardData} lastIntent={lastIntent} agentStatus={agentStatus} />
+            <LearnerProfile data={dashboardData?.learner_profile} hasProfile={hasProfile} />
+          </div>
+
+          <JourneyTimeline dashboardData={dashboardData} />
+
+          {/* Grid for Plan and Metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+            <TodayPlan
+              data={dashboardData?.today_plan}
+              hasProfile={hasProfile}
+              onToggleTask={handleToggleTask}
+              onCompleteDay={handleCompleteDay}
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <LearningAnalytics data={dashboardData?.learning_analytics} hasProfile={hasProfile} />
+              <AgentStatus status={agentStatus} message={statusMessage} />
+              <AgentActivityFeed dashboardData={dashboardData} />
             </div>
           </div>
 
-          <div className="chat-messages-container">
-            {messages.length === 0 ? (
-              <div className="chat-empty-state">
-                <div className="empty-icon-circle">
-                  <MessageSquare size={22} className="empty-icon" />
-                </div>
-                <h5>Start your conversation</h5>
-                <p>Learn vocabulary, correct grammar, translate text, or ask a language-related question.</p>
-              </div>
-            ) : (
-              <div className="messages-flow">
-                <AnimatePresence initial={false}>
-                  {messages.map((msg, index) => {
-                    const isUser = msg.role === "user";
-                    const FeatureIcon = msg.feature ? getFeatureIcon(msg.feature) : Sparkles;
-                    return (
-                      <motion.div
-                        key={index}
-                        className={`message-row ${isUser ? "user-row" : "bot-row"}`}
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.35, ease: "easeOut" }}
-                      >
-                        <div className="bubble-wrapper">
-                          {/* Animated Pill Badge above AI Response */}
-                          {!isUser && msg.feature && (
-                            <motion.div 
-                              className="feature-badge"
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ duration: 0.25, delay: 0.05 }}
-                            >
-                              <FeatureIcon size={12} className="badge-icon" />
-                              <span>{getCleanBadgeLabel(msg.feature)}</span>
-                            </motion.div>
-                          )}
-                          
-                          <div className={`bubble ${isUser ? "user-bubble" : "bot-bubble"}`}>
-                            {isUser ? (
-                              <p className="bubble-plain-text">{msg.text}</p>
-                            ) : (
-                              renderResponseCard(msg.feature, msg.text)
-                            )}
-                          </div>
-                          <span className="bubble-timestamp">{msg.time}</span>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
-            )}
-
-            {/* Bouncing Dots Loading Indicator */}
-            {isLoading && (
-              <motion.div 
-                className="message-row bot-row"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <div className="bubble-wrapper">
-                  <div className="bubble thinking-bubble">
-                    <div className="thinking-container">
-                      <span className="thinking-text">LingoLift is thinking</span>
-                      <div className="thinking-dots">
-                        <span className="dot dot-1" />
-                        <span className="dot dot-2" />
-                        <span className="dot dot-3" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-            <div ref={chatBottomRef} />
-          </div>
-
-          {/* Sticky Input Footer Area */}
-          <div className="chat-input-area">
-            <div className="input-pill">
-              <input
-                type="text"
-                placeholder="Type a language question (e.g. Correct: I is study English)..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={isLoading}
-              />
-              <motion.button
-                className="send-button"
-                onClick={() => onSendMessage()}
-                disabled={!inputMessage.trim() || isLoading}
-                title="Send query"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <ArrowUp size={16} />
-              </motion.button>
-            </div>
+          {/* Grid for Roadmap and Tools */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+            <Roadmap data={dashboardData?.roadmap} hasProfile={hasProfile} />
+            <ToolIntegration data={dashboardData?.tool_usage} />
           </div>
         </div>
       </div>
